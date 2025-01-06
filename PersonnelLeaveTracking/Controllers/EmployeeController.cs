@@ -34,6 +34,11 @@ namespace PersonnelLeaveTracking.Controllers
         [HttpPost]
         public IActionResult AddEmployee(Employee employee)
         {
+            if (employee.RemainingLeaves == 0)
+            {
+                employee.RemainingLeaves = 14;
+            }
+
             _context.Employees.Add(employee);
             _context.SaveChanges();
             return CreatedAtAction(nameof(GetEmployee), new { id = employee.Id }, employee);
@@ -53,11 +58,13 @@ namespace PersonnelLeaveTracking.Controllers
             employee.HireDate = updatedEmployee.HireDate;
             employee.BirthDate = updatedEmployee.BirthDate;
             employee.DepartmentId = updatedEmployee.DepartmentId;
-            employee.RemainingLeaves = updatedEmployee.RemainingLeaves;
+
+            employee.RemainingLeaves = updatedEmployee.RemainingLeaves == 0 ? 14 : updatedEmployee.RemainingLeaves;
 
             _context.SaveChanges();
             return NoContent();
         }
+
 
         [HttpDelete("{id}")]
         public IActionResult DeleteEmployee(int id)

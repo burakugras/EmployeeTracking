@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using PersonnelLeaveTracking.Data;
 using PersonnelLeaveTracking.Models;
 
@@ -18,26 +19,33 @@ namespace PersonnelLeaveTracking.Controllers
         [HttpGet]
         public IActionResult GetAllLeaveRequests()
         {
-            var leaveRequests = _context.LeaveRequests.ToList();
+            var leaveRequests = _context.LeaveRequests
+                                        .Include(lr => lr.Employee)
+                                        .ThenInclude(e => e.Department)
+                                        .ToList();
+
             return Ok(leaveRequests);
         }
 
-        // 2. Belirli bir çalışanın izin taleplerini listele
         [HttpGet("employee/{employeeId}")]
         public IActionResult GetLeaveRequestsByEmployee(int employeeId)
         {
-            var leaveRequests = _context.LeaveRequests.Where(lr => lr.EmployeeId == employeeId).ToList();
+            var leaveRequests = _context.LeaveRequests
+                                        .Where(lr => lr.EmployeeId == employeeId)
+                                        .Include(lr => lr.Employee)
+                                        .ThenInclude(e => e.Department)
+                                        .ToList();
+
             if (!leaveRequests.Any())
-                return NotFound("Bu çalışan için izin talebi bulunamadı.");
+                return NotFound("Bu çalışanın izin talebi bulunamadı.");
 
             return Ok(leaveRequests);
         }
 
-        // 3. Yeni izin talebi oluştur
+
         [HttpPost]
         public IActionResult CreateLeaveRequest(LeaveRequest leaveRequest)
         {
-
             var employee = _context.Employees.Find(leaveRequest.EmployeeId);
             if (employee == null)
                 return NotFound("Çalışan bulunamadı.");
@@ -46,12 +54,18 @@ namespace PersonnelLeaveTracking.Controllers
             if (employee.RemainingLeaves < totalLeaveDays)
                 return BadRequest("Yeterli izin hakkı bulunmuyor.");
 
+
+            leaveRequest.Status = "Pending";
+
             _context.LeaveRequests.Add(leaveRequest);
-            employee.RemainingLeaves -= totalLeaveDays; // Kalan izin günlerini güncelle
+            employee.RemainingLeaves -= totalLeaveDays;
+
             _context.SaveChanges();
 
             return CreatedAtAction(nameof(GetAllLeaveRequests), new { id = leaveRequest.Id }, leaveRequest);
         }
+
+
 
         [HttpPut("{id}")]
         public IActionResult UpdateLeaveRequestStatus(int id, [FromBody] string status)
@@ -66,7 +80,7 @@ namespace PersonnelLeaveTracking.Controllers
             return NoContent();
         }
 
-        
+
         [HttpDelete("{id}")]
         public IActionResult DeleteLeaveRequest(int id)
         {
