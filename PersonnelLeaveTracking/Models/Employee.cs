@@ -29,6 +29,6 @@ namespace PersonnelLeaveTracking.Models
         public int? DepartmentId { get; set; }
         public Department? Department { get; set; }
 
-        public int RemainingLeaves { get; set; } = 14; // Başlangıçta 14 gün
+        public int RemainingLeaves { get; set; } = 14;
     }
 }

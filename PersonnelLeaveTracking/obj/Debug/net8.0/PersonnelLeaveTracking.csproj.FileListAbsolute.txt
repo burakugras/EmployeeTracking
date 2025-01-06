@@ -133,3 +133,4 @@
 /Users/burak/Desktop/EmployeeTracking/PersonnelLeaveTracking/obj/Debug/net8.0/PersonnelLeaveTracking.pdb
 /Users/burak/Desktop/EmployeeTracking/PersonnelLeaveTracking/obj/Debug/net8.0/PersonnelLeaveTracking.genruntimeconfig.cache
 /Users/burak/Desktop/EmployeeTracking/PersonnelLeaveTracking/obj/Debug/net8.0/ref/PersonnelLeaveTracking.dll
+/Users/burak/Desktop/EmployeeTracking/PersonnelLeaveTracking/obj/Debug/net8.0/PersonnelLeaveTracking.sourcelink.json
