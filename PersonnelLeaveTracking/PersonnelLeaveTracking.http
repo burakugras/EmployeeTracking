@@ -1,0 +1,6 @@
+@PersonnelLeaveTracking_HostAddress = http://localhost:5049
+
+GET {{PersonnelLeaveTracking_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
