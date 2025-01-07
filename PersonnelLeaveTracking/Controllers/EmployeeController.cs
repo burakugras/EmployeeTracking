@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using PersonnelLeaveTracking.Data;
 using PersonnelLeaveTracking.Models;
 
@@ -18,22 +19,62 @@ namespace PersonnelLeaveTracking.Controllers
         [HttpGet]
         public IActionResult GetEmployees()
         {
-            var employees = _context.Employees.ToList();
+            var employees = _context.Employees
+                                    .Include(e => e.Department)
+                                    .Select(e => new
+                                    {
+                                        e.Id,
+                                        e.FirstName,
+                                        e.LastName,
+                                        e.Email,
+                                        e.HireDate,
+                                        e.BirthDate,
+                                        Title = e.Title.ToString(), // Enum'u string olarak döndür
+                                        Department = new
+                                        {
+                                            e.Department.Id,
+                                            e.Department.Name
+                                        },
+                                        e.RemainingLeaves
+                                    })
+                                    .ToList();
             return Ok(employees);
         }
 
         [HttpGet("{id}")]
         public IActionResult GetEmployee(int id)
         {
-            var employee = _context.Employees.Find(id);
+            var employee = _context.Employees
+                                   .Include(e => e.Department)
+                                   .Where(e => e.Id == id)
+                                   .Select(e => new
+                                   {
+                                       e.Id,
+                                       e.FirstName,
+                                       e.LastName,
+                                       e.Email,
+                                       e.HireDate,
+                                       e.BirthDate,
+                                       Title = e.Title.ToString(), // Enum'u string olarak döndür
+                                       Department = new
+                                       {
+                                           e.Department.Id,
+                                           e.Department.Name
+                                       },
+                                       e.RemainingLeaves
+                                   })
+                                   .FirstOrDefault();
+
             if (employee == null)
                 return NotFound("Çalışan bulunamadı.");
+
             return Ok(employee);
         }
 
         [HttpPost]
         public IActionResult AddEmployee(Employee employee)
         {
+            employee.Department = null;
             if (employee.RemainingLeaves == 0)
             {
                 employee.RemainingLeaves = 14;
@@ -58,13 +99,11 @@ namespace PersonnelLeaveTracking.Controllers
             employee.HireDate = updatedEmployee.HireDate;
             employee.BirthDate = updatedEmployee.BirthDate;
             employee.DepartmentId = updatedEmployee.DepartmentId;
-
             employee.RemainingLeaves = updatedEmployee.RemainingLeaves == 0 ? 14 : updatedEmployee.RemainingLeaves;
 
             _context.SaveChanges();
             return NoContent();
         }
-
 
         [HttpDelete("{id}")]
         public IActionResult DeleteEmployee(int id)

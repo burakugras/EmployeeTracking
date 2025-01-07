@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using PersonnelLeaveTracking.Enums; // Enum'ları kullanmak için ekleyin
 
 namespace PersonnelLeaveTracking.Models
 {
@@ -23,7 +24,7 @@ namespace PersonnelLeaveTracking.Models
         public DateTime? BirthDate { get; set; }
 
         [Required]
-        public string Title { get; set; } // Çalışan, Müdür, IK Müdür
+        public EmployeeTitle Title { get; set; }
 
         [ForeignKey("Department")]
         public int? DepartmentId { get; set; }

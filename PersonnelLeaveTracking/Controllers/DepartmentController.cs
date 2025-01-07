@@ -22,7 +22,6 @@ namespace PersonnelLeaveTracking.Controllers
             return Ok(departments);
         }
 
-        // Belirli bir departmanı ID'ye göre getir
         [HttpGet("{id}")]
         public IActionResult GetDepartment(int id)
         {

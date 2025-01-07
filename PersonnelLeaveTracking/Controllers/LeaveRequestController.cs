@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PersonnelLeaveTracking.Data;
 using PersonnelLeaveTracking.Models;
+using PersonnelLeaveTracking.Enums;
 
 namespace PersonnelLeaveTracking.Controllers
 {
@@ -22,10 +23,34 @@ namespace PersonnelLeaveTracking.Controllers
             var leaveRequests = _context.LeaveRequests
                                         .Include(lr => lr.Employee)
                                         .ThenInclude(e => e.Department)
+                                        .Select(lr => new
+                                        {
+                                            lr.Id,
+                                            lr.StartDate,
+                                            lr.EndDate,
+                                            Status = lr.Status.ToString(),
+                                            ApprovedBy = lr.ApprovedBy == "string" || string.IsNullOrEmpty(lr.ApprovedBy)
+                                                         ? "Not approved yet"
+                                                         : lr.ApprovedBy,
+                                            Employee = new
+                                            {
+                                                lr.Employee.Id,
+                                                lr.Employee.FirstName,
+                                                lr.Employee.LastName,
+                                                Title = lr.Employee.Title.ToString(),
+                                                Department = new
+                                                {
+                                                    lr.Employee.Department.Id,
+                                                    lr.Employee.Department.Name
+                                                }
+                                            }
+                                        })
                                         .ToList();
 
             return Ok(leaveRequests);
         }
+
+
 
         [HttpGet("employee/{employeeId}")]
         public IActionResult GetLeaveRequestsByEmployee(int employeeId)
@@ -34,6 +59,28 @@ namespace PersonnelLeaveTracking.Controllers
                                         .Where(lr => lr.EmployeeId == employeeId)
                                         .Include(lr => lr.Employee)
                                         .ThenInclude(e => e.Department)
+                                        .Select(lr => new
+                                        {
+                                            lr.Id,
+                                            lr.StartDate,
+                                            lr.EndDate,
+                                            Status = lr.Status.ToString(),
+                                            ApprovedBy = lr.ApprovedBy == "string" || string.IsNullOrEmpty(lr.ApprovedBy)
+                                                         ? "Not approved yet"
+                                                         : lr.ApprovedBy,
+                                            Employee = new
+                                            {
+                                                lr.Employee.Id,
+                                                lr.Employee.FirstName,
+                                                lr.Employee.LastName,
+                                                Title = lr.Employee.Title.ToString(),
+                                                Department = new
+                                                {
+                                                    lr.Employee.Department.Id,
+                                                    lr.Employee.Department.Name
+                                                }
+                                            }
+                                        })
                                         .ToList();
 
             if (!leaveRequests.Any())
@@ -43,10 +90,14 @@ namespace PersonnelLeaveTracking.Controllers
         }
 
 
+
         [HttpPost]
         public IActionResult CreateLeaveRequest(LeaveRequest leaveRequest)
         {
-            var employee = _context.Employees.Find(leaveRequest.EmployeeId);
+            var employee = _context.Employees
+                                   .Include(e => e.Department)
+                                   .FirstOrDefault(e => e.Id == leaveRequest.EmployeeId);
+
             if (employee == null)
                 return NotFound("Çalışan bulunamadı.");
 
@@ -54,8 +105,10 @@ namespace PersonnelLeaveTracking.Controllers
             if (employee.RemainingLeaves < totalLeaveDays)
                 return BadRequest("Yeterli izin hakkı bulunmuyor.");
 
+            leaveRequest.EmployeeId = employee.Id;
+            leaveRequest.Employee = null;
 
-            leaveRequest.Status = "Pending";
+            leaveRequest.Status = LeaveStatus.Pending;
 
             _context.LeaveRequests.Add(leaveRequest);
             employee.RemainingLeaves -= totalLeaveDays;
@@ -66,15 +119,19 @@ namespace PersonnelLeaveTracking.Controllers
         }
 
 
-
         [HttpPut("{id}")]
         public IActionResult UpdateLeaveRequestStatus(int id, [FromBody] string status)
         {
+            if (!Enum.TryParse<LeaveStatus>(status, true, out var parsedStatus))
+                return BadRequest("Geçersiz durum.");
+
             var leaveRequest = _context.LeaveRequests.Find(id);
             if (leaveRequest == null)
                 return NotFound("İzin talebi bulunamadı.");
 
-            leaveRequest.Status = status;
+            leaveRequest.Status = parsedStatus;
+            leaveRequest.ApprovedBy = User.Identity?.Name ?? "Manager";
+
             _context.SaveChanges();
 
             return NoContent();

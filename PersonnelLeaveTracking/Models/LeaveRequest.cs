@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using PersonnelLeaveTracking.Enums; // Enum'ları kullanmak için ekleyin
 
 namespace PersonnelLeaveTracking.Models
 {
@@ -18,7 +19,8 @@ namespace PersonnelLeaveTracking.Models
         [Required]
         public DateTime EndDate { get; set; }
 
-        public string? Status { get; set; } = "Pending";
+        [Required]
+        public LeaveStatus Status { get; set; } = LeaveStatus.Pending;
 
         public string? ApprovedBy { get; set; }
     }
