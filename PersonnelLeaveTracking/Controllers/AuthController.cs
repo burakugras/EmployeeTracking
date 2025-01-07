@@ -32,7 +32,6 @@ namespace PersonnelLeaveTracking.Controllers
             if (string.IsNullOrEmpty(request.Title))
                 return BadRequest("Geçerli bir unvan (title) belirtmelisiniz.");
 
-            // Title'a göre role belirleme
             UserRole role = request.Title switch
             {
                 "Manager" => UserRole.Admin,
