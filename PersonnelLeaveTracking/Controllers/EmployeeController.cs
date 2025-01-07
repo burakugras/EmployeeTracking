@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PersonnelLeaveTracking.Data;
+using PersonnelLeaveTracking.Enums;
 using PersonnelLeaveTracking.Models;
 
 namespace PersonnelLeaveTracking.Controllers
@@ -30,16 +31,16 @@ namespace PersonnelLeaveTracking.Controllers
                                         e.HireDate,
                                         e.BirthDate,
                                         Title = e.Title.ToString(),
-                                        Department = new
-                                        {
-                                            e.Department.Id,
-                                            e.Department.Name
-                                        },
+                                        Department = e.Department != null
+                                            ? new { e.Department.Id, e.Department.Name }
+                                            : null,
                                         e.RemainingLeaves
                                     })
                                     .ToList();
+
             return Ok(employees);
         }
+
 
         [HttpGet("{id}")]
         public IActionResult GetEmployee(int id)
@@ -95,15 +96,25 @@ namespace PersonnelLeaveTracking.Controllers
             employee.FirstName = updatedEmployee.FirstName;
             employee.LastName = updatedEmployee.LastName;
             employee.Email = updatedEmployee.Email;
-            employee.Title = updatedEmployee.Title;
             employee.HireDate = updatedEmployee.HireDate;
             employee.BirthDate = updatedEmployee.BirthDate;
+
+            if (Enum.TryParse(updatedEmployee.Title.ToString(), out EmployeeTitle parsedTitle))
+            {
+                employee.Title = parsedTitle;
+            }
+            else
+            {
+                return BadRequest("Geçersiz unvan.");
+            }
+
             employee.DepartmentId = updatedEmployee.DepartmentId;
             employee.RemainingLeaves = updatedEmployee.RemainingLeaves == 0 ? 14 : updatedEmployee.RemainingLeaves;
 
             _context.SaveChanges();
             return NoContent();
         }
+
 
         [HttpDelete("{id}")]
         public IActionResult DeleteEmployee(int id)

@@ -23,7 +23,6 @@ namespace PersonnelLeaveTracking.Data
                         .Property(lr => lr.Status)
                         .HasConversion<string>();
 
-            // Cascade on delete'i önlemek için ilişkiyi nullable olarak ayarlayın
             modelBuilder.Entity<Employee>()
                         .HasOne(e => e.Department)
                         .WithMany()

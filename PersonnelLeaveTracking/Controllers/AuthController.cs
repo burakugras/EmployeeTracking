@@ -63,7 +63,7 @@ namespace PersonnelLeaveTracking.Controllers
             var claims = new[]
             {
                 new Claim(JwtRegisteredClaimNames.Sub, user.Username),
-                new Claim(ClaimTypes.Role, user.Role.ToString()), // Enum'u string olarak aktar
+                new Claim(ClaimTypes.Role, user.Role.ToString()),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
 
