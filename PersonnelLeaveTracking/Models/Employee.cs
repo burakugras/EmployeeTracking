@@ -19,12 +19,15 @@ namespace PersonnelLeaveTracking.Models
         public string Email { get; set; }
 
         [Required]
-        public DateTime HireDate { get; set; }
-
-        public DateTime? BirthDate { get; set; }
+        public string Password { get; set; }
 
         [Required]
         public EmployeeTitle Title { get; set; }
+
+        [Required]
+        public DateTime HireDate { get; set; }
+
+        public DateTime? BirthDate { get; set; }
 
         [ForeignKey("Department")]
         public int? DepartmentId { get; set; }

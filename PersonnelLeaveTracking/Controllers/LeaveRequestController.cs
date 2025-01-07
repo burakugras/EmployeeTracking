@@ -19,140 +19,162 @@ namespace PersonnelLeaveTracking.Controllers
         }
 
         [HttpGet]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Manager,HRManager")]
         public IActionResult GetAllLeaveRequests()
         {
+            // Verileri sorgula
             var leaveRequests = _context.LeaveRequests
                 .Include(lr => lr.Employee)
-                .ThenInclude(e => e.Department)
                 .Select(lr => new
                 {
                     lr.Id,
                     lr.StartDate,
                     lr.EndDate,
                     Status = lr.Status.ToString(),
-                    ApprovedBy = lr.ApprovedBy == "string" || string.IsNullOrEmpty(lr.ApprovedBy)
-                        ? "Not approved yet"
-                        : lr.ApprovedBy,
+                    lr.ApprovedBy,
                     Employee = new
                     {
                         lr.Employee.Id,
                         lr.Employee.FirstName,
                         lr.Employee.LastName,
-                        Title = lr.Employee.Title.ToString(),
-                        Department = new
-                        {
-                            lr.Employee.Department.Id,
-                            lr.Employee.Department.Name
-                        }
+                        lr.Employee.Email,
+                        Title = lr.Employee.Title.ToString()
                     }
                 }).ToList();
 
-            return Ok(leaveRequests);
+
+            var result = leaveRequests.Select(lr => new
+            {
+                lr.Id,
+                lr.StartDate,
+                lr.EndDate,
+                lr.Status,
+                ApprovedBy = !string.IsNullOrEmpty(lr.ApprovedBy)
+                    ? $"{lr.ApprovedBy} ({GetApproverRole(lr.ApprovedBy)})"
+                    : "Henüz onaylanmadı.",
+                lr.Employee
+            });
+
+            return Ok(result);
         }
+
+        private string GetApproverRole(string approvedByEmail)
+        {
+            var approver = _context.Employees.FirstOrDefault(e => e.Email == approvedByEmail);
+            return approver != null ? approver.Title.ToString() : "Bilinmeyen Rol";
+        }
+
+
+
+
+
+
 
         [HttpGet("employee/{employeeId}")]
         [Authorize]
         public IActionResult GetLeaveRequestsByEmployee(int employeeId)
         {
+            var employee = _context.Employees.FirstOrDefault(e => e.Id == employeeId);
+
+            if (employee == null)
+                return NotFound("Çalışan bulunamadı.");
+
             var leaveRequests = _context.LeaveRequests
                 .Where(lr => lr.EmployeeId == employeeId)
-                .Include(lr => lr.Employee)
-                .ThenInclude(e => e.Department)
                 .Select(lr => new
                 {
                     lr.Id,
                     lr.StartDate,
                     lr.EndDate,
                     Status = lr.Status.ToString(),
-                    ApprovedBy = lr.ApprovedBy == "string" || string.IsNullOrEmpty(lr.ApprovedBy)
-                        ? "Not approved yet"
-                        : lr.ApprovedBy,
-                    Employee = new
-                    {
-                        lr.Employee.Id,
-                        lr.Employee.FirstName,
-                        lr.Employee.LastName,
-                        Title = lr.Employee.Title.ToString(),
-                        Department = new
-                        {
-                            lr.Employee.Department.Id,
-                            lr.Employee.Department.Name
-                        }
-                    }
+                    ApprovedBy = string.IsNullOrEmpty(lr.ApprovedBy) ? "Henüz onaylanmadı." : lr.ApprovedBy
                 }).ToList();
-
-            if (!leaveRequests.Any())
-                return NotFound("Bu çalışanın izin talebi bulunamadı.");
 
             return Ok(leaveRequests);
         }
 
         [HttpPost]
-        [Authorize(Roles = "Admin")]
+        [Authorize]
         public IActionResult CreateLeaveRequest(LeaveRequest leaveRequest)
         {
-            var employee = _context.Employees
-                .Include(e => e.Department)
-                .FirstOrDefault(e => e.Id == leaveRequest.EmployeeId);
+            var email = User.Identity?.Name;
+            var employee = _context.Employees.FirstOrDefault(e => e.Email == email);
 
             if (employee == null)
-                return NotFound("Çalışan bulunamadı.");
+                return Unauthorized("Çalışan bulunamadı.");
 
-            var totalLeaveDays = (leaveRequest.EndDate - leaveRequest.StartDate).Days + 1;
-            if (employee.RemainingLeaves < totalLeaveDays)
-                return BadRequest("Yeterli izin hakkı bulunmuyor.");
+            if (leaveRequest.StartDate < DateTime.UtcNow)
+                return BadRequest("Başlangıç tarihi geçmiş bir tarih olamaz.");
+
+            if (leaveRequest.EndDate < leaveRequest.StartDate)
+                return BadRequest("Bitiş tarihi, başlangıç tarihinden önce olamaz.");
+
+            var overlappingRequest = _context.LeaveRequests.Any(lr =>
+                lr.EmployeeId == employee.Id &&
+                lr.Status == LeaveStatus.Approved &&
+                lr.StartDate < leaveRequest.EndDate &&
+                lr.EndDate > leaveRequest.StartDate);
+
+            if (overlappingRequest)
+                return BadRequest("Bu tarih aralığında zaten bir onaylanmış izin talebi mevcut.");
 
             leaveRequest.EmployeeId = employee.Id;
-            leaveRequest.Employee = null;
             leaveRequest.Status = LeaveStatus.Pending;
 
             _context.LeaveRequests.Add(leaveRequest);
-            employee.RemainingLeaves -= totalLeaveDays;
-
             _context.SaveChanges();
 
-            return CreatedAtAction(nameof(GetAllLeaveRequests), new { id = leaveRequest.Id }, leaveRequest);
+            return Ok("İzin talebi başarıyla oluşturuldu.");
         }
 
-        [HttpPut("{id}")]
-        [Authorize(Roles = "Admin")]
-        public IActionResult UpdateLeaveRequestStatus(int id, [FromBody] string status)
-        {
-            if (!Enum.TryParse<LeaveStatus>(status, true, out var parsedStatus))
-                return BadRequest("Geçersiz durum.");
 
-            var leaveRequest = _context.LeaveRequests.Find(id);
+
+        [HttpPut("{id}/approve")]
+        [Authorize(Roles = "Manager,HRManager")]
+        public IActionResult ApproveLeaveRequest(int id)
+        {
+            var leaveRequest = _context.LeaveRequests
+                                       .Include(lr => lr.Employee)
+                                       .FirstOrDefault(lr => lr.Id == id);
+
             if (leaveRequest == null)
                 return NotFound("İzin talebi bulunamadı.");
 
-            leaveRequest.Status = parsedStatus;
-            leaveRequest.ApprovedBy = User.Identity?.Name ?? "Manager";
+            if (leaveRequest.Status != LeaveStatus.Pending)
+                return BadRequest("Bu izin talebi zaten işlem görmüş.");
+
+            var totalLeaveDays = (leaveRequest.EndDate - leaveRequest.StartDate).Days + 1;
+
+            if (leaveRequest.Employee.RemainingLeaves < totalLeaveDays)
+                return BadRequest("Çalışanın yeterli izin hakkı bulunmuyor.");
+
+            leaveRequest.Status = LeaveStatus.Approved;
+            leaveRequest.ApprovedBy = User.Identity?.Name;
+            leaveRequest.Employee.RemainingLeaves -= totalLeaveDays;
 
             _context.SaveChanges();
-
-            return NoContent();
+            return Ok("İzin talebi onaylandı.");
         }
 
-        [HttpDelete("{id}")]
-        [Authorize(Roles = "Admin")]
-        public IActionResult DeleteLeaveRequest(int id)
+        [HttpPut("{id}/reject")]
+        [Authorize(Roles = "Manager,HRManager")]
+        public IActionResult RejectLeaveRequest(int id)
         {
-            var leaveRequest = _context.LeaveRequests.Find(id);
+            var leaveRequest = _context.LeaveRequests
+                                       .Include(lr => lr.Employee)
+                                       .FirstOrDefault(lr => lr.Id == id);
+
             if (leaveRequest == null)
                 return NotFound("İzin talebi bulunamadı.");
 
-            _context.LeaveRequests.Remove(leaveRequest);
+            if (leaveRequest.Status != LeaveStatus.Pending)
+                return BadRequest("Bu izin talebi zaten işlem görmüş.");
+
+            leaveRequest.Status = LeaveStatus.Rejected;
+            leaveRequest.ApprovedBy = User.Identity?.Name;
+
             _context.SaveChanges();
-
-            return NoContent();
-        }
-
-        [HttpGet("protected")]
-        [Authorize]
-        public IActionResult ProtectedEndpoint()
-        {
-            return Ok("Bu endpoint yalnızca giriş yapmış kullanıcılar için erişilebilir.");
+            return Ok("İzin talebi reddedildi.");
         }
     }
 }

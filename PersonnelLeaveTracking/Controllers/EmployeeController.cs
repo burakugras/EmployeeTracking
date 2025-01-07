@@ -87,33 +87,27 @@ namespace PersonnelLeaveTracking.Controllers
         }
 
         [HttpPut("{id}")]
-        public IActionResult UpdateEmployee(int id, Employee updatedEmployee)
+        public IActionResult UpdateEmployee(int id, [FromBody] Employee updatedEmployee)
         {
-            var employee = _context.Employees.Find(id);
+            var employee = _context.Employees.Include(e => e.Department).FirstOrDefault(e => e.Id == id);
             if (employee == null)
                 return NotFound("Çalışan bulunamadı.");
 
+            // Güncellenen değerler atanıyor
             employee.FirstName = updatedEmployee.FirstName;
             employee.LastName = updatedEmployee.LastName;
             employee.Email = updatedEmployee.Email;
+            employee.Password = BCrypt.Net.BCrypt.HashPassword(updatedEmployee.Password); // Şifre hashleniyor
+            employee.Title = updatedEmployee.Title;
             employee.HireDate = updatedEmployee.HireDate;
             employee.BirthDate = updatedEmployee.BirthDate;
-
-            if (Enum.TryParse(updatedEmployee.Title.ToString(), out EmployeeTitle parsedTitle))
-            {
-                employee.Title = parsedTitle;
-            }
-            else
-            {
-                return BadRequest("Geçersiz unvan.");
-            }
-
             employee.DepartmentId = updatedEmployee.DepartmentId;
             employee.RemainingLeaves = updatedEmployee.RemainingLeaves == 0 ? 14 : updatedEmployee.RemainingLeaves;
 
             _context.SaveChanges();
             return NoContent();
         }
+
 
 
         [HttpDelete("{id}")]

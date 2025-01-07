@@ -3,7 +3,6 @@ using Microsoft.IdentityModel.Tokens;
 using PersonnelLeaveTracking.Data;
 using PersonnelLeaveTracking.Helpers;
 using PersonnelLeaveTracking.Models;
-using PersonnelLeaveTracking.Enums;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -23,48 +22,27 @@ namespace PersonnelLeaveTracking.Controllers
             _context = context;
         }
 
-        [HttpPost("register")]
-        public IActionResult Register([FromBody] RegisterRequest request)
-        {
-            if (_context.Users.Any(u => u.Username == request.Username))
-                return BadRequest("Kullanıcı adı zaten mevcut.");
-
-            if (string.IsNullOrEmpty(request.Title))
-                return BadRequest("Geçerli bir unvan (title) belirtmelisiniz.");
-
-            UserRole role = request.Title switch
-            {
-                "Manager" => UserRole.Admin,
-                "HRManager" => UserRole.Admin,
-                _ => UserRole.User
-            };
-
-            var user = new User
-            {
-                Username = request.Username,
-                Password = BCrypt.Net.BCrypt.HashPassword(request.Password),
-                Role = role
-            };
-
-            _context.Users.Add(user);
-            _context.SaveChanges();
-
-            return Ok("Kullanıcı başarıyla kaydedildi.");
-        }
-
         [HttpPost("login")]
         public IActionResult Login([FromBody] LoginRequest request)
         {
-            var user = _context.Users.FirstOrDefault(u => u.Username == request.Username);
-            if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.Password))
-                return Unauthorized("Geçersiz kullanıcı adı veya şifre.");
+            var employee = _context.Employees.FirstOrDefault(e => e.Email == request.Email);
+            if (employee == null)
+            {
+                return Unauthorized("E-posta adresi bulunamadı.");
+            }
+
+            bool isPasswordValid = BCrypt.Net.BCrypt.Verify(request.Password, employee.Password);
+            if (!isPasswordValid)
+            {
+                return Unauthorized("Şifre eşleşmedi."); 
+            }
 
             var claims = new[]
             {
-                new Claim(JwtRegisteredClaimNames.Sub, user.Username),
-                new Claim(ClaimTypes.Role, user.Role.ToString()),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-            };
+        new Claim(JwtRegisteredClaimNames.Sub, employee.Email),
+        new Claim(ClaimTypes.Role, employee.Title.ToString()),
+        new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+    };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Key));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -84,17 +62,12 @@ namespace PersonnelLeaveTracking.Controllers
             });
         }
 
-        public class RegisterRequest
-        {
-            public string Username { get; set; }
-            public string Password { get; set; }
-            public string Title { get; set; }
-        }
 
-        public class LoginRequest
-        {
-            public string Username { get; set; }
-            public string Password { get; set; }
-        }
+    }
+
+    public class LoginRequest
+    {
+        public string Email { get; set; }
+        public string Password { get; set; }
     }
 }
