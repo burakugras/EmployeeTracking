@@ -3,10 +3,10 @@ using Microsoft.IdentityModel.Tokens;
 using PersonnelLeaveTracking.Data;
 using PersonnelLeaveTracking.Helpers;
 using PersonnelLeaveTracking.Models;
+using PersonnelLeaveTracking.Enums;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using BCrypt.Net;
 
 namespace PersonnelLeaveTracking.Controllers
 {
@@ -27,33 +27,24 @@ namespace PersonnelLeaveTracking.Controllers
         public IActionResult Register([FromBody] RegisterRequest request)
         {
             if (_context.Users.Any(u => u.Username == request.Username))
-            {
                 return BadRequest("Kullanıcı adı zaten mevcut.");
-            }
 
             if (string.IsNullOrEmpty(request.Title))
-            {
                 return BadRequest("Geçerli bir unvan (title) belirtmelisiniz.");
-            }
 
-            if (request.Password.Length < 2)
+            // Title'a göre role belirleme
+            UserRole role = request.Title switch
             {
-                return BadRequest("Şifre en az 2 karakter uzunluğunda olmalıdır.");
-            }
-
-            string role = request.Title switch
-            {
-                "Manager" => "Admin",
-                "HRManager" => "Admin",
-                _ => "User"
+                "Manager" => UserRole.Admin,
+                "HRManager" => UserRole.Admin,
+                _ => UserRole.User
             };
 
             var user = new User
             {
                 Username = request.Username,
                 Password = BCrypt.Net.BCrypt.HashPassword(request.Password),
-                Role = role,
-                Title = request.Title
+                Role = role
             };
 
             _context.Users.Add(user);
@@ -62,28 +53,19 @@ namespace PersonnelLeaveTracking.Controllers
             return Ok("Kullanıcı başarıyla kaydedildi.");
         }
 
-
         [HttpPost("login")]
         public IActionResult Login([FromBody] LoginRequest request)
         {
             var user = _context.Users.FirstOrDefault(u => u.Username == request.Username);
-
             if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.Password))
-            {
                 return Unauthorized("Geçersiz kullanıcı adı veya şifre.");
-            }
-
-            if (string.IsNullOrEmpty(user.Role))
-            {
-                return Unauthorized("Kullanıcı rolü belirlenemedi.");
-            }
 
             var claims = new[]
             {
-        new Claim(JwtRegisteredClaimNames.Sub, user.Username),
-        new Claim(ClaimTypes.Role, user.Role),
-        new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-    };
+                new Claim(JwtRegisteredClaimNames.Sub, user.Username),
+                new Claim(ClaimTypes.Role, user.Role.ToString()), // Enum'u string olarak aktar
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Key));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -103,7 +85,6 @@ namespace PersonnelLeaveTracking.Controllers
             });
         }
 
-
         public class RegisterRequest
         {
             public string Username { get; set; }
@@ -117,5 +98,4 @@ namespace PersonnelLeaveTracking.Controllers
             public string Password { get; set; }
         }
     }
-
 }

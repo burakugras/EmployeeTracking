@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using PersonnelLeaveTracking.Enums; // Enum'ları kullanmak için ekleyin
+using PersonnelLeaveTracking.Enums;
 
 namespace PersonnelLeaveTracking.Models
 {

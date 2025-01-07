@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authorization; // Yetkilendirme için gerekli
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PersonnelLeaveTracking.Data;
@@ -19,35 +19,34 @@ namespace PersonnelLeaveTracking.Controllers
         }
 
         [HttpGet]
-        [Authorize]
+        [Authorize(Roles = "Admin")]
         public IActionResult GetAllLeaveRequests()
         {
             var leaveRequests = _context.LeaveRequests
-                                        .Include(lr => lr.Employee)
-                                        .ThenInclude(e => e.Department)
-                                        .Select(lr => new
-                                        {
-                                            lr.Id,
-                                            lr.StartDate,
-                                            lr.EndDate,
-                                            Status = lr.Status.ToString(),
-                                            ApprovedBy = lr.ApprovedBy == "string" || string.IsNullOrEmpty(lr.ApprovedBy)
-                                                         ? "Not approved yet"
-                                                         : lr.ApprovedBy,
-                                            Employee = new
-                                            {
-                                                lr.Employee.Id,
-                                                lr.Employee.FirstName,
-                                                lr.Employee.LastName,
-                                                Title = lr.Employee.Title.ToString(),
-                                                Department = new
-                                                {
-                                                    lr.Employee.Department.Id,
-                                                    lr.Employee.Department.Name
-                                                }
-                                            }
-                                        })
-                                        .ToList();
+                .Include(lr => lr.Employee)
+                .ThenInclude(e => e.Department)
+                .Select(lr => new
+                {
+                    lr.Id,
+                    lr.StartDate,
+                    lr.EndDate,
+                    Status = lr.Status.ToString(),
+                    ApprovedBy = lr.ApprovedBy == "string" || string.IsNullOrEmpty(lr.ApprovedBy)
+                        ? "Not approved yet"
+                        : lr.ApprovedBy,
+                    Employee = new
+                    {
+                        lr.Employee.Id,
+                        lr.Employee.FirstName,
+                        lr.Employee.LastName,
+                        Title = lr.Employee.Title.ToString(),
+                        Department = new
+                        {
+                            lr.Employee.Department.Id,
+                            lr.Employee.Department.Name
+                        }
+                    }
+                }).ToList();
 
             return Ok(leaveRequests);
         }
@@ -57,32 +56,31 @@ namespace PersonnelLeaveTracking.Controllers
         public IActionResult GetLeaveRequestsByEmployee(int employeeId)
         {
             var leaveRequests = _context.LeaveRequests
-                                        .Where(lr => lr.EmployeeId == employeeId)
-                                        .Include(lr => lr.Employee)
-                                        .ThenInclude(e => e.Department)
-                                        .Select(lr => new
-                                        {
-                                            lr.Id,
-                                            lr.StartDate,
-                                            lr.EndDate,
-                                            Status = lr.Status.ToString(),
-                                            ApprovedBy = lr.ApprovedBy == "string" || string.IsNullOrEmpty(lr.ApprovedBy)
-                                                         ? "Not approved yet"
-                                                         : lr.ApprovedBy,
-                                            Employee = new
-                                            {
-                                                lr.Employee.Id,
-                                                lr.Employee.FirstName,
-                                                lr.Employee.LastName,
-                                                Title = lr.Employee.Title.ToString(),
-                                                Department = new
-                                                {
-                                                    lr.Employee.Department.Id,
-                                                    lr.Employee.Department.Name
-                                                }
-                                            }
-                                        })
-                                        .ToList();
+                .Where(lr => lr.EmployeeId == employeeId)
+                .Include(lr => lr.Employee)
+                .ThenInclude(e => e.Department)
+                .Select(lr => new
+                {
+                    lr.Id,
+                    lr.StartDate,
+                    lr.EndDate,
+                    Status = lr.Status.ToString(),
+                    ApprovedBy = lr.ApprovedBy == "string" || string.IsNullOrEmpty(lr.ApprovedBy)
+                        ? "Not approved yet"
+                        : lr.ApprovedBy,
+                    Employee = new
+                    {
+                        lr.Employee.Id,
+                        lr.Employee.FirstName,
+                        lr.Employee.LastName,
+                        Title = lr.Employee.Title.ToString(),
+                        Department = new
+                        {
+                            lr.Employee.Department.Id,
+                            lr.Employee.Department.Name
+                        }
+                    }
+                }).ToList();
 
             if (!leaveRequests.Any())
                 return NotFound("Bu çalışanın izin talebi bulunamadı.");
@@ -95,8 +93,8 @@ namespace PersonnelLeaveTracking.Controllers
         public IActionResult CreateLeaveRequest(LeaveRequest leaveRequest)
         {
             var employee = _context.Employees
-                                   .Include(e => e.Department)
-                                   .FirstOrDefault(e => e.Id == leaveRequest.EmployeeId);
+                .Include(e => e.Department)
+                .FirstOrDefault(e => e.Id == leaveRequest.EmployeeId);
 
             if (employee == null)
                 return NotFound("Çalışan bulunamadı.");
@@ -151,7 +149,7 @@ namespace PersonnelLeaveTracking.Controllers
         }
 
         [HttpGet("protected")]
-        [Authorize] // Giriş yapılmış kullanıcılar için korunan endpoint
+        [Authorize]
         public IActionResult ProtectedEndpoint()
         {
             return Ok("Bu endpoint yalnızca giriş yapmış kullanıcılar için erişilebilir.");
