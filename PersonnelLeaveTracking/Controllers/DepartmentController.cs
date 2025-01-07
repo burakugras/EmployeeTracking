@@ -59,8 +59,15 @@ namespace PersonnelLeaveTracking.Controllers
             if (department == null)
                 return NotFound("Departman bulunamadı.");
 
+            var employees = _context.Employees.Where(e => e.DepartmentId == id).ToList();
+            foreach (var employee in employees)
+            {
+                employee.DepartmentId = null;
+            }
+
             _context.Departments.Remove(department);
             _context.SaveChanges();
+
             return NoContent();
         }
     }

@@ -27,7 +27,7 @@ namespace PersonnelLeaveTracking.Models
         public EmployeeTitle Title { get; set; }
 
         [ForeignKey("Department")]
-        public int? DepartmentId { get; set; }
+        public int? DepartmentId { get; set; } // Nullable olarak ayarlandı
         public Department? Department { get; set; }
 
         public int RemainingLeaves { get; set; } = 14;

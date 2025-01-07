@@ -13,7 +13,6 @@ namespace PersonnelLeaveTracking.Data
         public DbSet<LeaveRequest> LeaveRequests { get; set; }
         public DbSet<User> Users { get; set; }
 
-
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             modelBuilder.Entity<Employee>()
@@ -23,6 +22,13 @@ namespace PersonnelLeaveTracking.Data
             modelBuilder.Entity<LeaveRequest>()
                         .Property(lr => lr.Status)
                         .HasConversion<string>();
+
+            // Cascade on delete'i önlemek için ilişkiyi nullable olarak ayarlayın
+            modelBuilder.Entity<Employee>()
+                        .HasOne(e => e.Department)
+                        .WithMany()
+                        .HasForeignKey(e => e.DepartmentId)
+                        .OnDelete(DeleteBehavior.SetNull);
         }
     }
 }
