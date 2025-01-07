@@ -1,8 +1,9 @@
+using Microsoft.AspNetCore.Authorization; // Yetkilendirme için gerekli
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PersonnelLeaveTracking.Data;
-using PersonnelLeaveTracking.Models;
 using PersonnelLeaveTracking.Enums;
+using PersonnelLeaveTracking.Models;
 
 namespace PersonnelLeaveTracking.Controllers
 {
@@ -18,6 +19,7 @@ namespace PersonnelLeaveTracking.Controllers
         }
 
         [HttpGet]
+        [Authorize]
         public IActionResult GetAllLeaveRequests()
         {
             var leaveRequests = _context.LeaveRequests
@@ -50,9 +52,8 @@ namespace PersonnelLeaveTracking.Controllers
             return Ok(leaveRequests);
         }
 
-
-
         [HttpGet("employee/{employeeId}")]
+        [Authorize]
         public IActionResult GetLeaveRequestsByEmployee(int employeeId)
         {
             var leaveRequests = _context.LeaveRequests
@@ -89,9 +90,8 @@ namespace PersonnelLeaveTracking.Controllers
             return Ok(leaveRequests);
         }
 
-
-
         [HttpPost]
+        [Authorize(Roles = "Admin")]
         public IActionResult CreateLeaveRequest(LeaveRequest leaveRequest)
         {
             var employee = _context.Employees
@@ -107,7 +107,6 @@ namespace PersonnelLeaveTracking.Controllers
 
             leaveRequest.EmployeeId = employee.Id;
             leaveRequest.Employee = null;
-
             leaveRequest.Status = LeaveStatus.Pending;
 
             _context.LeaveRequests.Add(leaveRequest);
@@ -118,8 +117,8 @@ namespace PersonnelLeaveTracking.Controllers
             return CreatedAtAction(nameof(GetAllLeaveRequests), new { id = leaveRequest.Id }, leaveRequest);
         }
 
-
         [HttpPut("{id}")]
+        [Authorize(Roles = "Admin")]
         public IActionResult UpdateLeaveRequestStatus(int id, [FromBody] string status)
         {
             if (!Enum.TryParse<LeaveStatus>(status, true, out var parsedStatus))
@@ -137,8 +136,8 @@ namespace PersonnelLeaveTracking.Controllers
             return NoContent();
         }
 
-
         [HttpDelete("{id}")]
+        [Authorize(Roles = "Admin")]
         public IActionResult DeleteLeaveRequest(int id)
         {
             var leaveRequest = _context.LeaveRequests.Find(id);
@@ -149,6 +148,13 @@ namespace PersonnelLeaveTracking.Controllers
             _context.SaveChanges();
 
             return NoContent();
+        }
+
+        [HttpGet("protected")]
+        [Authorize] // Giriş yapılmış kullanıcılar için korunan endpoint
+        public IActionResult ProtectedEndpoint()
+        {
+            return Ok("Bu endpoint yalnızca giriş yapmış kullanıcılar için erişilebilir.");
         }
     }
 }

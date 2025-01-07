@@ -29,7 +29,7 @@ namespace PersonnelLeaveTracking.Controllers
                                         e.Email,
                                         e.HireDate,
                                         e.BirthDate,
-                                        Title = e.Title.ToString(), // Enum'u string olarak döndür
+                                        Title = e.Title.ToString(),
                                         Department = new
                                         {
                                             e.Department.Id,
@@ -55,7 +55,7 @@ namespace PersonnelLeaveTracking.Controllers
                                        e.Email,
                                        e.HireDate,
                                        e.BirthDate,
-                                       Title = e.Title.ToString(), // Enum'u string olarak döndür
+                                       Title = e.Title.ToString(),
                                        Department = new
                                        {
                                            e.Department.Id,
