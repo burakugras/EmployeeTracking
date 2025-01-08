@@ -15,7 +15,7 @@ namespace PersonnelLeaveTracking.DTOs
         public string Email { get; set; }
 
         [MinLength(4)]
-        public string Password { get; set; } // Opsiyonel şifre güncelleme
+        public string Password { get; set; }//şifre güncellene için kalsın 
 
         [Required]
         public int Title { get; set; }
