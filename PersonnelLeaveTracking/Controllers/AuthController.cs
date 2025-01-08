@@ -37,15 +37,15 @@ namespace PersonnelLeaveTracking.Controllers
                 return Unauthorized("Şifre eşleşmedi.");
             }
 
-            //email, rol, tokenId, exp süresi jwt'ye ekledim.
             var claims = new[]
             {
                 new Claim(JwtRegisteredClaimNames.Sub, employee.Email),
                 new Claim(ClaimTypes.Name, employee.Email),
                 new Claim(ClaimTypes.Role, employee.Title.ToString()),
+                new Claim("FirstName", employee.FirstName),
+                new Claim("LastName", employee.LastName),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
-
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Key));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -64,8 +64,6 @@ namespace PersonnelLeaveTracking.Controllers
                 Expiration = token.ValidTo
             });
         }
-
-
     }
 
     public class LoginRequest

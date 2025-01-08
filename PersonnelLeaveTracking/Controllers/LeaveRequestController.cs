@@ -118,7 +118,6 @@ namespace PersonnelLeaveTracking.Controllers
             return Ok("İzin talebi başarıyla oluşturuldu.");
         }
 
-
         [HttpPut("{id}/approve")]
         [Authorize(Roles = "Manager,HRManager")]
         public IActionResult ApproveLeaveRequest(int id)
@@ -134,14 +133,20 @@ namespace PersonnelLeaveTracking.Controllers
                 return BadRequest("Bu izin talebi zaten tamamen onaylanmış.");
 
             var userRole = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
-            var userName = User.Identity?.Name;
+            var userEmail = User.Identity?.Name;
+
+            var approver = _context.Employees.FirstOrDefault(e => e.Email == userEmail);
+            if (approver == null)
+                return Unauthorized("Onaylayan kişi bulunamadı.");
+
+            var approverFullName = $"{approver.FirstName} {approver.LastName}";
 
             if (userRole == "Manager")
             {
                 if (!string.IsNullOrEmpty(leaveRequest.ApprovedByManager))
                     return BadRequest("Bu izin talebi zaten bir Manager tarafından onaylandı.");
 
-                leaveRequest.ApprovedByManager = userName;
+                leaveRequest.ApprovedByManager = approverFullName;
             }
             else if (userRole == "HRManager")
             {
@@ -151,7 +156,7 @@ namespace PersonnelLeaveTracking.Controllers
                 if (!string.IsNullOrEmpty(leaveRequest.ApprovedByHRManager))
                     return BadRequest("Bu izin talebi zaten bir HRManager tarafından onaylandı.");
 
-                leaveRequest.ApprovedByHRManager = userName;
+                leaveRequest.ApprovedByHRManager = approverFullName;
 
                 leaveRequest.Status = LeaveStatus.Approved;
 
@@ -169,10 +174,6 @@ namespace PersonnelLeaveTracking.Controllers
             _context.SaveChanges();
             return Ok("İzin talebi güncellendi.");
         }
-
-
-
-
 
         [HttpPut("{id}/reject")]
         [Authorize(Roles = "Manager,HRManager")]
