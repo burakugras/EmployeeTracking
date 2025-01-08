@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using PersonnelLeaveTracking.Data;
+using PersonnelLeaveTracking.DTOs;
 using PersonnelLeaveTracking.Enums;
 using PersonnelLeaveTracking.Models;
 
@@ -72,37 +73,51 @@ namespace PersonnelLeaveTracking.Controllers
 
         [HttpPost]
         [Authorize]
-        public IActionResult CreateLeaveRequest(LeaveRequest leaveRequest)
+        public IActionResult CreateLeaveRequest([FromBody] LeaveRequestDto leaveRequestDto)
         {
             var email = User.Identity?.Name;
+
             var employee = _context.Employees.FirstOrDefault(e => e.Email == email);
-
             if (employee == null)
+            {
                 return Unauthorized("Çalışan bulunamadı.");
+            }
 
-            if (leaveRequest.StartDate < DateTime.UtcNow)
+            if (leaveRequestDto.StartDate < DateTime.UtcNow)
+            {
                 return BadRequest("Başlangıç tarihi geçmiş bir tarih olamaz.");
+            }
 
-            if (leaveRequest.EndDate < leaveRequest.StartDate)
+            if (leaveRequestDto.EndDate < leaveRequestDto.StartDate)
+            {
                 return BadRequest("Bitiş tarihi, başlangıç tarihinden önce olamaz.");
+            }
 
             var overlappingRequest = _context.LeaveRequests.Any(lr =>
                 lr.EmployeeId == employee.Id &&
                 lr.Status == LeaveStatus.Approved &&
-                lr.StartDate < leaveRequest.EndDate &&
-                lr.EndDate > leaveRequest.StartDate);
+                lr.StartDate < leaveRequestDto.EndDate &&
+                lr.EndDate > leaveRequestDto.StartDate);
 
             if (overlappingRequest)
+            {
                 return BadRequest("Bu tarih aralığında zaten bir onaylanmış izin talebi mevcut.");
+            }
 
-            leaveRequest.EmployeeId = employee.Id;
-            leaveRequest.Status = LeaveStatus.Pending;
+            var leaveRequest = new LeaveRequest
+            {
+                EmployeeId = employee.Id,
+                StartDate = leaveRequestDto.StartDate,
+                EndDate = leaveRequestDto.EndDate,
+                Status = LeaveStatus.Pending
+            };
 
             _context.LeaveRequests.Add(leaveRequest);
             _context.SaveChanges();
 
             return Ok("İzin talebi başarıyla oluşturuldu.");
         }
+
 
         [HttpPut("{id}/approve")]
         [Authorize(Roles = "Manager,HRManager")]
@@ -116,7 +131,7 @@ namespace PersonnelLeaveTracking.Controllers
                 return NotFound("İzin talebi bulunamadı.");
 
             if (leaveRequest.Status == LeaveStatus.Approved)
-                return BadRequest("Bu izin talebi zaten onaylanmış.");
+                return BadRequest("Bu izin talebi zaten tamamen onaylanmış.");
 
             var userRole = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
             var userName = User.Identity?.Name;
@@ -125,29 +140,39 @@ namespace PersonnelLeaveTracking.Controllers
             {
                 if (!string.IsNullOrEmpty(leaveRequest.ApprovedByManager))
                     return BadRequest("Bu izin talebi zaten bir Manager tarafından onaylandı.");
+
                 leaveRequest.ApprovedByManager = userName;
             }
             else if (userRole == "HRManager")
             {
+                if (string.IsNullOrEmpty(leaveRequest.ApprovedByManager))
+                    return BadRequest("Manager onayı olmadan HRManager bu talebi onaylayamaz.");
+
                 if (!string.IsNullOrEmpty(leaveRequest.ApprovedByHRManager))
                     return BadRequest("Bu izin talebi zaten bir HRManager tarafından onaylandı.");
-                leaveRequest.ApprovedByHRManager = userName;
-            }
 
-            if (!string.IsNullOrEmpty(leaveRequest.ApprovedByManager) &&
-                !string.IsNullOrEmpty(leaveRequest.ApprovedByHRManager))
-            {
+                leaveRequest.ApprovedByHRManager = userName;
+
                 leaveRequest.Status = LeaveStatus.Approved;
 
                 var totalLeaveDays = (leaveRequest.EndDate - leaveRequest.StartDate).Days + 1;
                 if (leaveRequest.Employee.RemainingLeaves < totalLeaveDays)
                     return BadRequest("Çalışanın yeterli izin hakkı bulunmuyor.");
+
                 leaveRequest.Employee.RemainingLeaves -= totalLeaveDays;
+            }
+            else
+            {
+                return Unauthorized("Bu işlemi gerçekleştirmek için yetkiniz yok.");
             }
 
             _context.SaveChanges();
             return Ok("İzin talebi güncellendi.");
         }
+
+
+
+
 
         [HttpPut("{id}/reject")]
         [Authorize(Roles = "Manager,HRManager")]

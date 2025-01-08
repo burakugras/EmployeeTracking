@@ -9,6 +9,6 @@ public class LeaveRequest
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
     public LeaveStatus Status { get; set; }
-    public string ApprovedByManager { get; set; }
-    public string ApprovedByHRManager { get; set; }
+    public string? ApprovedByManager { get; set; }
+    public string? ApprovedByHRManager { get; set; }
 }

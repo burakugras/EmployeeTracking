@@ -34,15 +34,17 @@ namespace PersonnelLeaveTracking.Controllers
             bool isPasswordValid = BCrypt.Net.BCrypt.Verify(request.Password, employee.Password);
             if (!isPasswordValid)
             {
-                return Unauthorized("Şifre eşleşmedi."); 
+                return Unauthorized("Şifre eşleşmedi.");
             }
 
             var claims = new[]
             {
-        new Claim(JwtRegisteredClaimNames.Sub, employee.Email),
-        new Claim(ClaimTypes.Role, employee.Title.ToString()),
-        new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
-    };
+                new Claim(JwtRegisteredClaimNames.Sub, employee.Email),
+                new Claim(ClaimTypes.Name, employee.Email),
+                new Claim(ClaimTypes.Role, employee.Title.ToString()),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+            };
+
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.Key));
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
