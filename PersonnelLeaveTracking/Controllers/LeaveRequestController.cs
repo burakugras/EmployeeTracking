@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -22,7 +23,6 @@ namespace PersonnelLeaveTracking.Controllers
         [Authorize(Roles = "Manager,HRManager")]
         public IActionResult GetAllLeaveRequests()
         {
-            // Verileri sorgula
             var leaveRequests = _context.LeaveRequests
                 .Include(lr => lr.Employee)
                 .Select(lr => new
@@ -31,7 +31,8 @@ namespace PersonnelLeaveTracking.Controllers
                     lr.StartDate,
                     lr.EndDate,
                     Status = lr.Status.ToString(),
-                    lr.ApprovedBy,
+                    ApprovedByManager = string.IsNullOrEmpty(lr.ApprovedByManager) ? "Henüz onaylanmadı." : lr.ApprovedByManager,
+                    ApprovedByHRManager = string.IsNullOrEmpty(lr.ApprovedByHRManager) ? "Henüz onaylanmadı." : lr.ApprovedByHRManager,
                     Employee = new
                     {
                         lr.Employee.Id,
@@ -42,33 +43,8 @@ namespace PersonnelLeaveTracking.Controllers
                     }
                 }).ToList();
 
-
-            var result = leaveRequests.Select(lr => new
-            {
-                lr.Id,
-                lr.StartDate,
-                lr.EndDate,
-                lr.Status,
-                ApprovedBy = !string.IsNullOrEmpty(lr.ApprovedBy)
-                    ? $"{lr.ApprovedBy} ({GetApproverRole(lr.ApprovedBy)})"
-                    : "Henüz onaylanmadı.",
-                lr.Employee
-            });
-
-            return Ok(result);
+            return Ok(leaveRequests);
         }
-
-        private string GetApproverRole(string approvedByEmail)
-        {
-            var approver = _context.Employees.FirstOrDefault(e => e.Email == approvedByEmail);
-            return approver != null ? approver.Title.ToString() : "Bilinmeyen Rol";
-        }
-
-
-
-
-
-
 
         [HttpGet("employee/{employeeId}")]
         [Authorize]
@@ -87,7 +63,8 @@ namespace PersonnelLeaveTracking.Controllers
                     lr.StartDate,
                     lr.EndDate,
                     Status = lr.Status.ToString(),
-                    ApprovedBy = string.IsNullOrEmpty(lr.ApprovedBy) ? "Henüz onaylanmadı." : lr.ApprovedBy
+                    ApprovedByManager = string.IsNullOrEmpty(lr.ApprovedByManager) ? "Henüz onaylanmadı." : lr.ApprovedByManager,
+                    ApprovedByHRManager = string.IsNullOrEmpty(lr.ApprovedByHRManager) ? "Henüz onaylanmadı." : lr.ApprovedByHRManager
                 }).ToList();
 
             return Ok(leaveRequests);
@@ -127,8 +104,6 @@ namespace PersonnelLeaveTracking.Controllers
             return Ok("İzin talebi başarıyla oluşturuldu.");
         }
 
-
-
         [HttpPut("{id}/approve")]
         [Authorize(Roles = "Manager,HRManager")]
         public IActionResult ApproveLeaveRequest(int id)
@@ -140,20 +115,38 @@ namespace PersonnelLeaveTracking.Controllers
             if (leaveRequest == null)
                 return NotFound("İzin talebi bulunamadı.");
 
-            if (leaveRequest.Status != LeaveStatus.Pending)
-                return BadRequest("Bu izin talebi zaten işlem görmüş.");
+            if (leaveRequest.Status == LeaveStatus.Approved)
+                return BadRequest("Bu izin talebi zaten onaylanmış.");
 
-            var totalLeaveDays = (leaveRequest.EndDate - leaveRequest.StartDate).Days + 1;
+            var userRole = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
+            var userName = User.Identity?.Name;
 
-            if (leaveRequest.Employee.RemainingLeaves < totalLeaveDays)
-                return BadRequest("Çalışanın yeterli izin hakkı bulunmuyor.");
+            if (userRole == "Manager")
+            {
+                if (!string.IsNullOrEmpty(leaveRequest.ApprovedByManager))
+                    return BadRequest("Bu izin talebi zaten bir Manager tarafından onaylandı.");
+                leaveRequest.ApprovedByManager = userName;
+            }
+            else if (userRole == "HRManager")
+            {
+                if (!string.IsNullOrEmpty(leaveRequest.ApprovedByHRManager))
+                    return BadRequest("Bu izin talebi zaten bir HRManager tarafından onaylandı.");
+                leaveRequest.ApprovedByHRManager = userName;
+            }
 
-            leaveRequest.Status = LeaveStatus.Approved;
-            leaveRequest.ApprovedBy = User.Identity?.Name;
-            leaveRequest.Employee.RemainingLeaves -= totalLeaveDays;
+            if (!string.IsNullOrEmpty(leaveRequest.ApprovedByManager) &&
+                !string.IsNullOrEmpty(leaveRequest.ApprovedByHRManager))
+            {
+                leaveRequest.Status = LeaveStatus.Approved;
+
+                var totalLeaveDays = (leaveRequest.EndDate - leaveRequest.StartDate).Days + 1;
+                if (leaveRequest.Employee.RemainingLeaves < totalLeaveDays)
+                    return BadRequest("Çalışanın yeterli izin hakkı bulunmuyor.");
+                leaveRequest.Employee.RemainingLeaves -= totalLeaveDays;
+            }
 
             _context.SaveChanges();
-            return Ok("İzin talebi onaylandı.");
+            return Ok("İzin talebi güncellendi.");
         }
 
         [HttpPut("{id}/reject")]
@@ -161,7 +154,6 @@ namespace PersonnelLeaveTracking.Controllers
         public IActionResult RejectLeaveRequest(int id)
         {
             var leaveRequest = _context.LeaveRequests
-                                       .Include(lr => lr.Employee)
                                        .FirstOrDefault(lr => lr.Id == id);
 
             if (leaveRequest == null)
@@ -171,7 +163,6 @@ namespace PersonnelLeaveTracking.Controllers
                 return BadRequest("Bu izin talebi zaten işlem görmüş.");
 
             leaveRequest.Status = LeaveStatus.Rejected;
-            leaveRequest.ApprovedBy = User.Identity?.Name;
 
             _context.SaveChanges();
             return Ok("İzin talebi reddedildi.");

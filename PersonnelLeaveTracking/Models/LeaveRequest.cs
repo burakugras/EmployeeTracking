@@ -1,27 +1,14 @@
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using PersonnelLeaveTracking.Enums; // Enum'ları kullanmak için ekleyin
+using PersonnelLeaveTracking.Enums;
+using PersonnelLeaveTracking.Models;
 
-namespace PersonnelLeaveTracking.Models
+public class LeaveRequest
 {
-    public class LeaveRequest
-    {
-        [Key]
-        public int Id { get; set; }
-
-        [ForeignKey("Employee")]
-        public int EmployeeId { get; set; }
-        public Employee? Employee { get; set; }
-
-        [Required]
-        public DateTime StartDate { get; set; }
-
-        [Required]
-        public DateTime EndDate { get; set; }
-
-        [Required]
-        public LeaveStatus Status { get; set; } = LeaveStatus.Pending;
-
-        public string? ApprovedBy { get; set; }
-    }
+    public int Id { get; set; }
+    public int EmployeeId { get; set; }
+    public Employee Employee { get; set; }
+    public DateTime StartDate { get; set; }
+    public DateTime EndDate { get; set; }
+    public LeaveStatus Status { get; set; }
+    public string ApprovedByManager { get; set; }
+    public string ApprovedByHRManager { get; set; }
 }
