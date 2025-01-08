@@ -42,6 +42,7 @@ namespace PersonnelLeaveTracking.Controllers
                 new Claim(JwtRegisteredClaimNames.Sub, employee.Email),
                 new Claim(ClaimTypes.Name, employee.Email),
                 new Claim(ClaimTypes.Role, employee.Title.ToString()),
+                new Claim("employeeId", employee.Id.ToString()),
                 new Claim("FirstName", employee.FirstName),
                 new Claim("LastName", employee.LastName),
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())

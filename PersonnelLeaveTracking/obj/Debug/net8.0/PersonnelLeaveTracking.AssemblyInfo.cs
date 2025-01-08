@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("PersonnelLeaveTracking")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+f62f7be028e9a24e6dfc25121b2c3b42fc8bf18d")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+271fdaf3842288667451dbf0e34aefc8d57592da")]
 [assembly: System.Reflection.AssemblyProductAttribute("PersonnelLeaveTracking")]
 [assembly: System.Reflection.AssemblyTitleAttribute("PersonnelLeaveTracking")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
