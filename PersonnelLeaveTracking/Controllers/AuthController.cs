@@ -37,6 +37,7 @@ namespace PersonnelLeaveTracking.Controllers
                 return Unauthorized("Şifre eşleşmedi.");
             }
 
+            //email, rol, tokenId, exp süresi jwt'ye ekledim.
             var claims = new[]
             {
                 new Claim(JwtRegisteredClaimNames.Sub, employee.Email),
