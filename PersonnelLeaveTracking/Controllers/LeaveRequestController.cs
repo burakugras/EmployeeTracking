@@ -174,7 +174,7 @@ namespace PersonnelLeaveTracking.Controllers
             }
 
             _context.SaveChanges();
-            return Ok("İzin talebi güncellendi.");
+            return Ok(new { message = "İzin talebi güncellendi." });
         }
 
         [HttpPut("{id}/reject")]
@@ -193,7 +193,7 @@ namespace PersonnelLeaveTracking.Controllers
             leaveRequest.Status = LeaveStatus.Rejected;
 
             _context.SaveChanges();
-            return Ok("İzin talebi reddedildi.");
+            return Ok(new { message = "İzin talebi reddedildi.." });
         }
     }
 }
