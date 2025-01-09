@@ -85,12 +85,12 @@ namespace PersonnelLeaveTracking.Controllers
 
             if (leaveRequestDto.StartDate < DateTime.UtcNow)
             {
-                return BadRequest("Başlangıç tarihi geçmiş bir tarih olamaz.");
+                return BadRequest(new { message = "Başlangıç tarihi geçmiş bir tarih olamaz." });
             }
 
             if (leaveRequestDto.EndDate < leaveRequestDto.StartDate)
             {
-                return BadRequest("Bitiş tarihi, başlangıç tarihinden önce olamaz.");
+                return BadRequest(new { message = "Bitiş tarihi, başlangıç tarihinden önce olamaz." });
             }
 
             var overlappingRequest = _context.LeaveRequests.Any(lr =>
@@ -101,22 +101,24 @@ namespace PersonnelLeaveTracking.Controllers
 
             if (overlappingRequest)
             {
-                return BadRequest("Bu tarih aralığında zaten bir onaylanmış izin talebi mevcut.");
+                return BadRequest(new { message = "Bu tarih aralığında zaten bir onaylanmış izin talebi mevcut." });
             }
 
             var leaveRequest = new LeaveRequest
             {
                 EmployeeId = employee.Id,
-                StartDate = leaveRequestDto.StartDate,
-                EndDate = leaveRequestDto.EndDate,
+                StartDate = leaveRequestDto.StartDate.ToUniversalTime(),
+                EndDate = leaveRequestDto.EndDate.ToUniversalTime(),
                 Status = LeaveStatus.Pending
             };
 
             _context.LeaveRequests.Add(leaveRequest);
             _context.SaveChanges();
 
-            return Ok("İzin talebi başarıyla oluşturuldu.");
+            return Ok(new { message = "İzin talebi başarıyla oluşturuldu." });
         }
+
+
 
         [HttpPut("{id}/approve")]
         [Authorize(Roles = "Manager,HRManager")]
