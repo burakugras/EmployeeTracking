@@ -21,6 +21,10 @@ builder.Services.AddCors(options =>
 var jwtSettings = builder.Configuration.GetSection("JwtSettings").Get<JwtSettings>();
 builder.Services.AddSingleton(jwtSettings);
 
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
+AppContext.SetSwitch("Npgsql.DisableDateTimeInfinityConversions", true);
+
+
 builder.Services.AddControllers();
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("DefaultConnection")));

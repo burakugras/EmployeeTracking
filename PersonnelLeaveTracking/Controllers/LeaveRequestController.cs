@@ -143,34 +143,54 @@ namespace PersonnelLeaveTracking.Controllers
 
             var approverFullName = $"{approver.FirstName} {approver.LastName}";
 
-            if (userRole == "Manager")
+            if (userEmail == leaveRequest.Employee.Email)
             {
-                if (!string.IsNullOrEmpty(leaveRequest.ApprovedByManager))
-                    return BadRequest("Bu izin talebi zaten bir Manager tarafından onaylandı.");
+                if (userRole == "Manager")
+                {
+                    leaveRequest.ApprovedByManager = approverFullName;
+                }
+                else if (userRole == "HRManager")
+                {
+                    leaveRequest.ApprovedByHRManager = approverFullName;
+                    leaveRequest.Status = LeaveStatus.Approved;
 
-                leaveRequest.ApprovedByManager = approverFullName;
-            }
-            else if (userRole == "HRManager")
-            {
-                if (string.IsNullOrEmpty(leaveRequest.ApprovedByManager))
-                    return BadRequest("Manager onayı olmadan HRManager bu talebi onaylayamaz.");
+                    var totalLeaveDays = (leaveRequest.EndDate - leaveRequest.StartDate).Days + 1;
+                    if (leaveRequest.Employee.RemainingLeaves < totalLeaveDays)
+                        return BadRequest("Çalışanın yeterli izin hakkı bulunmuyor.");
 
-                if (!string.IsNullOrEmpty(leaveRequest.ApprovedByHRManager))
-                    return BadRequest("Bu izin talebi zaten bir HRManager tarafından onaylandı.");
-
-                leaveRequest.ApprovedByHRManager = approverFullName;
-
-                leaveRequest.Status = LeaveStatus.Approved;
-
-                var totalLeaveDays = (leaveRequest.EndDate - leaveRequest.StartDate).Days + 1;
-                if (leaveRequest.Employee.RemainingLeaves < totalLeaveDays)
-                    return BadRequest("Çalışanın yeterli izin hakkı bulunmuyor.");
-
-                leaveRequest.Employee.RemainingLeaves -= totalLeaveDays;
+                    leaveRequest.Employee.RemainingLeaves -= totalLeaveDays;
+                }
             }
             else
             {
-                return Unauthorized("Bu işlemi gerçekleştirmek için yetkiniz yok.");
+                if (userRole == "Manager")
+                {
+                    if (leaveRequest.Employee.Title == EmployeeTitle.HRManager)
+                        return BadRequest("Manager, HRManager taleplerini onaylayamaz.");
+
+                    if (!string.IsNullOrEmpty(leaveRequest.ApprovedByManager))
+                        return BadRequest("Bu izin talebi zaten bir Manager tarafından onaylandı.");
+
+                    leaveRequest.ApprovedByManager = approverFullName;
+                }
+                else if (userRole == "HRManager")
+                {
+                    if (!string.IsNullOrEmpty(leaveRequest.ApprovedByHRManager))
+                        return BadRequest("Bu izin talebi zaten bir HRManager tarafından onaylandı.");
+
+                    leaveRequest.ApprovedByHRManager = approverFullName;
+
+                    if (!string.IsNullOrEmpty(leaveRequest.ApprovedByManager))
+                    {
+                        leaveRequest.Status = LeaveStatus.Approved;
+
+                        var totalLeaveDays = (leaveRequest.EndDate - leaveRequest.StartDate).Days + 1;
+                        if (leaveRequest.Employee.RemainingLeaves < totalLeaveDays)
+                            return BadRequest("Çalışanın yeterli izin hakkı bulunmuyor.");
+
+                        leaveRequest.Employee.RemainingLeaves -= totalLeaveDays;
+                    }
+                }
             }
 
             _context.SaveChanges();
@@ -182,6 +202,7 @@ namespace PersonnelLeaveTracking.Controllers
         public IActionResult RejectLeaveRequest(int id)
         {
             var leaveRequest = _context.LeaveRequests
+                                       .Include(lr => lr.Employee)
                                        .FirstOrDefault(lr => lr.Id == id);
 
             if (leaveRequest == null)
@@ -190,10 +211,46 @@ namespace PersonnelLeaveTracking.Controllers
             if (leaveRequest.Status != LeaveStatus.Pending)
                 return BadRequest("Bu izin talebi zaten işlem görmüş.");
 
-            leaveRequest.Status = LeaveStatus.Rejected;
+            var userRole = User.Claims.FirstOrDefault(c => c.Type == ClaimTypes.Role)?.Value;
+            var userEmail = User.Identity?.Name;
 
+            var approver = _context.Employees.FirstOrDefault(e => e.Email == userEmail);
+            if (approver == null)
+                return Unauthorized("Reddeden kişi bulunamadı.");
+
+            var approverFullName = $"{approver.FirstName} {approver.LastName}";
+
+            if (userEmail == leaveRequest.Employee.Email)
+            {
+                // Kendi izin talebini reddetme durumu
+                if (userRole == "Manager")
+                {
+                    leaveRequest.ApprovedByManager = null;
+                }
+                else if (userRole == "HRManager")
+                {
+                    leaveRequest.ApprovedByHRManager = null;
+                }
+            }
+            else
+            {
+                if (userRole == "Manager")
+                {
+                    if (leaveRequest.Employee.Title == EmployeeTitle.HRManager)
+                        return BadRequest("Manager, HRManager taleplerini reddedemez.");
+
+                    leaveRequest.ApprovedByManager = null;
+                }
+                else if (userRole == "HRManager")
+                {
+                    leaveRequest.ApprovedByHRManager = null;
+                }
+            }
+
+            leaveRequest.Status = LeaveStatus.Rejected;
             _context.SaveChanges();
-            return Ok(new { message = "İzin talebi reddedildi.." });
+            return Ok(new { message = "İzin talebi reddedildi." });
         }
+
     }
 }
