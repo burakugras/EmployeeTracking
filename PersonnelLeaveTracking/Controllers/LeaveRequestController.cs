@@ -40,36 +40,47 @@ namespace PersonnelLeaveTracking.Controllers
                         lr.Employee.FirstName,
                         lr.Employee.LastName,
                         lr.Employee.Email,
-                        Title = lr.Employee.Title.ToString()
+                        Title = lr.Employee.Title.ToString(),
+                        RemainingLeaves = lr.Employee.RemainingLeaves
                     }
                 }).ToList();
 
             return Ok(leaveRequests);
         }
 
+
         [HttpGet("employee/{employeeId}")]
-        [Authorize]
-        public IActionResult GetLeaveRequestsByEmployee(int employeeId)
+[Authorize]
+public IActionResult GetLeaveRequestsByEmployee(int employeeId)
+{
+    var employee = _context.Employees.FirstOrDefault(e => e.Id == employeeId);
+
+    if (employee == null)
+        return NotFound("Çalışan bulunamadı.");
+
+    var leaveRequests = _context.LeaveRequests
+        .Where(lr => lr.EmployeeId == employeeId)
+        .Select(lr => new
         {
-            var employee = _context.Employees.FirstOrDefault(e => e.Id == employeeId);
+            lr.Id,
+            lr.StartDate,
+            lr.EndDate,
+            Status = lr.Status.ToString(),
+            ApprovedByManager = string.IsNullOrEmpty(lr.ApprovedByManager) ? "Henüz onaylanmadı." : lr.ApprovedByManager,
+            ApprovedByHRManager = string.IsNullOrEmpty(lr.ApprovedByHRManager) ? "Henüz onaylanmadı." : lr.ApprovedByHRManager,
+            Employee = new
+            {
+                lr.Employee.Id,
+                lr.Employee.FirstName,
+                lr.Employee.LastName,
+                lr.Employee.Email,
+                Title = lr.Employee.Title.ToString(),
+                RemainingLeaves = lr.Employee.RemainingLeaves
+            }
+        }).ToList();
 
-            if (employee == null)
-                return NotFound("Çalışan bulunamadı.");
-
-            var leaveRequests = _context.LeaveRequests
-                .Where(lr => lr.EmployeeId == employeeId)
-                .Select(lr => new
-                {
-                    lr.Id,
-                    lr.StartDate,
-                    lr.EndDate,
-                    Status = lr.Status.ToString(),
-                    ApprovedByManager = string.IsNullOrEmpty(lr.ApprovedByManager) ? "Henüz onaylanmadı." : lr.ApprovedByManager,
-                    ApprovedByHRManager = string.IsNullOrEmpty(lr.ApprovedByHRManager) ? "Henüz onaylanmadı." : lr.ApprovedByHRManager
-                }).ToList();
-
-            return Ok(leaveRequests);
-        }
+    return Ok(leaveRequests);
+}
 
         [HttpPost]
         [Authorize]
@@ -222,7 +233,6 @@ namespace PersonnelLeaveTracking.Controllers
 
             if (userEmail == leaveRequest.Employee.Email)
             {
-                // Kendi izin talebini reddetme durumu
                 if (userRole == "Manager")
                 {
                     leaveRequest.ApprovedByManager = null;
